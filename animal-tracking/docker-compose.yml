@@ -6,10 +6,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - sqlite_data:/app/backend/db  # adjust if your .sqlite file is elsewhere
+      - sqlite_data:/app/backend/db
     environment:
       - NODE_ENV=production
 
 volumes:
   sqlite_data:
-

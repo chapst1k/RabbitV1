@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy backend and frontend code
 COPY backend ./backend
-COPY frontend ./frontend
+COPY . .
 
 # Install backend dependencies
 WORKDIR /app/backend
@@ -21,4 +21,4 @@ WORKDIR /app/backend
 EXPOSE 8000
 
 # Start backend server
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]
