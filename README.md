@@ -10,7 +10,6 @@ A simple web application that can be run locally to track animal keeping, breedi
 - Breeding and hatching logs
 - QR code generation for easy ID scanning ( Not Fully Working ) 
 - Photo uploads for each animal
-- Works offline and syncs with backend when online
 - Simple local SQLite backend
 - Docker support for easy deployment
 
@@ -23,21 +22,21 @@ A simple web application that can be run locally to track animal keeping, breedi
 Clone the repo and spin everything up with Docker Compose:
 
 
-git clone https://github.com/chapst1k/RabbitV1.git
-cd animal-tracking
-docker-compose up -d
+- git clone https://github.com/chapst1k/RabbitV1.git
+- cd animal-tracking
+- docker-compose up -d
 
 ### Option 2
 
-git clone https://github.com/chapst1k/RabbitV1.git
-cd animal-tracking
-npm install
-npm run
+- git clone https://github.com/chapst1k/RabbitV1.git
+- cd animal-tracking
+- npm install
+- npm run
 
 Backend (in a separate terminal)
 
-cd backend
-npm install
-npm run dev  # Starts the API for the SQLite database
+- cd backend
+- npm install
+- npm run dev  # Starts the API for the SQLite database
 
 
