@@ -23,21 +23,21 @@ A simple web application that can be run locally to track animal keeping, breedi
 Clone the repo and spin everything up with Docker Compose:
 
 
-git clone https://github.com/chapst1k/RabbitV1.git
-cd animal-tracking
-docker-compose up -d
+- git clone https://github.com/chapst1k/RabbitV1.git
+- cd animal-tracking
+- docker-compose up -d
 
 ### Option 2
 
-git clone https://github.com/chapst1k/RabbitV1.git
-cd animal-tracking
-npm install
-npm run
+- git clone https://github.com/chapst1k/RabbitV1.git
+- cd animal-tracking
+- npm install
+- npm run
 
 Backend (in a separate terminal)
 
-cd backend
-npm install
-npm run dev  # Starts the API for the SQLite database
+- cd backend
+- npm install
+- npm run dev  # Starts the API for the SQLite database
 
 
