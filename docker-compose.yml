@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite_data:/app/backend/db  # adjust if your .sqlite file is elsewhere
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  sqlite_data:
+

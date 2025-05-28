@@ -12,11 +12,8 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Ensure uploads dir
 const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
-}
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 app.use('/uploads', express.static('uploads'));
 
 const storage = multer.diskStorage({
@@ -28,27 +25,24 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// SQLite DB
 const db = new sqlite3.Database('animal_tracker.db', (err) => {
     if (err) console.error('Error opening DB:', err.message);
     else console.log('Connected to SQLite DB.');
 });
 
-// Ensure column helper
 function ensureColumnExists(table, column, definition) {
     db.all(`PRAGMA table_info(${table})`, (err, columns) => {
         if (err) return console.error(`Failed to fetch columns for ${table}:`, err.message);
-        const exists = columns.some(col => col.name === column);
-        if (!exists) {
+        const columnExists = columns.some(col => col.name === column);
+        if (!columnExists) {
             db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`, (alterErr) => {
                 if (alterErr) console.error(`Error adding column ${column} to ${table}:`, alterErr.message);
-                else console.log(`Column '${column}' added to '${table}'`);
+                else console.log(`Column '${column}' added to table '${table}'`);
             });
         }
     });
 }
 
-// Table creation
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS animals (
         id TEXT PRIMARY KEY,
@@ -70,6 +64,7 @@ db.serialize(() => {
         maleId TEXT NOT NULL,
         femaleId TEXT NOT NULL,
         breedingDate TEXT NOT NULL,
+        gestationDays INTEGER DEFAULT 31,
         expectedDate TEXT,
         actualDate TEXT,
         status TEXT DEFAULT 'pending',
@@ -98,16 +93,17 @@ db.serialize(() => {
         updatedAt TEXT NOT NULL
     )`);
 
-    ensureColumnExists('breedings', 'gestationDays', 'INTEGER DEFAULT 31');
-
     console.log('Tables created.');
+    ensureColumnExists('breedings', 'gestationDays', 'INTEGER DEFAULT 31');
 });
 
-// API routes
+// ---------- Animals Routes ----------
+
 app.get('/api/animals', (req, res) => {
-    db.all("SELECT * FROM animals ORDER BY createdAt DESC", (err, rows) =>
-        err ? res.status(500).json({ error: err.message }) : res.json(rows)
-    );
+    db.all("SELECT * FROM animals ORDER BY createdAt DESC", (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 app.get('/api/animals/:id', (req, res) => {
@@ -120,10 +116,17 @@ app.get('/api/animals/:id', (req, res) => {
 
 app.post('/api/animals', (req, res) => {
     const { id, name, species, breed, color, sex, dateOfBirth, status, notes, image } = req.body;
-    const now = new Date().toISOString();
-    db.run(`INSERT INTO animals VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, name, species, breed, color, sex, dateOfBirth, status, notes, image, now, now],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+    const createdAt = new Date().toISOString();
+    const updatedAt = createdAt;
+
+    db.run(`INSERT INTO animals (id, name, species, breed, color, sex, dateOfBirth, status, notes, image, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, species, breed, color, sex, dateOfBirth, status, notes, image, createdAt, updatedAt],
+        function (err) {
+            if (err) {
+                console.error('POST /api/animals error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             res.json({ id, success: true });
         });
 });
@@ -131,39 +134,60 @@ app.post('/api/animals', (req, res) => {
 app.put('/api/animals/:id', (req, res) => {
     const { name, species, breed, color, sex, dateOfBirth, status, notes, image } = req.body;
     const updatedAt = new Date().toISOString();
-    db.run(`UPDATE animals SET name=?, species=?, breed=?, color=?, sex=?, dateOfBirth=?, status=?, notes=?, image=?, updatedAt=? WHERE id=?`, [name, species, breed, color, sex, dateOfBirth, status, notes, image, updatedAt, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+
+    db.run(`UPDATE animals SET name = ?, species = ?, breed = ?, color = ?, sex = ?, dateOfBirth = ?, status = ?, notes = ?, image = ?, updatedAt = ? WHERE id = ?`,
+        [name, species, breed, color, sex, dateOfBirth, status, notes, image, updatedAt, req.params.id],
+        function (err) {
+            if (err) {
+                console.error('PUT /api/animals/:id error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             if (this.changes === 0) return res.status(404).json({ error: 'Animal not found' });
             res.json({ success: true });
         });
 });
 
 app.delete('/api/animals/:id', (req, res) => {
-    db.run("DELETE FROM animals WHERE id = ?", [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    db.run("DELETE FROM animals WHERE id = ?", [req.params.id], function (err) {
+        if (err) {
+            console.error('DELETE /api/animals/:id error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
         if (this.changes === 0) return res.status(404).json({ error: 'Animal not found' });
         res.json({ success: true });
     });
 });
 
+// ---------- Breedings Routes ----------
+
 app.get('/api/breedings', (req, res) => {
-    db.all(`
-        SELECT b.*, m.name as maleName, f.name as femaleName
+    const query = `
+        SELECT b.*, 
+               m.name as maleName, m.species as maleSpecies,
+               f.name as femaleName, f.species as femaleSpecies
         FROM breedings b
         LEFT JOIN animals m ON b.maleId = m.id
         LEFT JOIN animals f ON b.femaleId = f.id
-        ORDER BY b.createdAt DESC
-    `, (err, rows) => err ? res.status(500).json({ error: err.message }) : res.json(rows));
+        ORDER BY b.createdAt DESC`;
+    db.all(query, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 app.post('/api/breedings', (req, res) => {
     const { id, maleId, femaleId, breedingDate, gestationDays, expectedDate, notes } = req.body;
-    const now = new Date().toISOString();
+    const createdAt = new Date().toISOString();
+    const updatedAt = createdAt;
+
     db.run(`INSERT INTO breedings (id, maleId, femaleId, breedingDate, gestationDays, expectedDate, notes, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, maleId, femaleId, breedingDate, gestationDays || 31, expectedDate, notes, now, now],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, maleId, femaleId, breedingDate, gestationDays || 31, expectedDate, notes, createdAt, updatedAt],
+        function (err) {
+            if (err) {
+                console.error('POST /api/breedings error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             res.json({ id, success: true });
         });
 });
@@ -171,32 +195,50 @@ app.post('/api/breedings', (req, res) => {
 app.put('/api/breedings/:id', (req, res) => {
     const { status, actualDate, offspring = 0, notes } = req.body;
     const updatedAt = new Date().toISOString();
-    db.run(`UPDATE breedings SET status=?, actualDate=?, offspring=?, notes=?, updatedAt=? WHERE id=?`, [status, actualDate, offspring, notes, updatedAt, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+
+    db.run(`UPDATE breedings SET status = ?, actualDate = ?, offspring = ?, notes = ?, updatedAt = ? WHERE id = ?`,
+        [status, actualDate, offspring, notes, updatedAt, req.params.id],
+        function (err) {
+            if (err) {
+                console.error('PUT /api/breedings/:id error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             res.json({ success: true });
         });
 });
 
 app.delete('/api/breedings/:id', (req, res) => {
-    db.run("DELETE FROM breedings WHERE id = ?", [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    db.run("DELETE FROM breedings WHERE id = ?", [req.params.id], function (err) {
+        if (err) {
+            console.error('DELETE /api/breedings/:id error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
         res.json({ success: true });
     });
 });
 
+// ---------- Hatchings Routes ----------
+
 app.get('/api/hatchings', (req, res) => {
-    db.all("SELECT *, COALESCE(hatchedEggs, 0) AS hatchedEggs FROM hatchings ORDER BY createdAt DESC",
-        (err, rows) => err ? res.status(500).json({ error: err.message }) : res.json(rows));
+    db.all("SELECT *, COALESCE(hatchedEggs, 0) AS hatchedEggs FROM hatchings ORDER BY createdAt DESC", (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 app.post('/api/hatchings', (req, res) => {
     const { id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes } = req.body;
-    const now = new Date().toISOString();
+    const createdAt = new Date().toISOString();
+    const updatedAt = createdAt;
+
     db.run(`INSERT INTO hatchings (id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, now, now],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, createdAt, updatedAt],
+        function (err) {
+            if (err) {
+                console.error('POST /api/hatchings error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             res.json({ id, success: true });
         });
 });
@@ -204,61 +246,50 @@ app.post('/api/hatchings', (req, res) => {
 app.put('/api/hatchings/:id', (req, res) => {
     const { status, actualHatchDate, hatchedEggs, temperature, humidity, notes } = req.body;
     const updatedAt = new Date().toISOString();
-    db.run(`UPDATE hatchings SET status=?, actualHatchDate=?, hatchedEggs=?, temperature=?, humidity=?, notes=?, updatedAt=? WHERE id=?`, [status, actualHatchDate, hatchedEggs, temperature, humidity, notes, updatedAt, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+
+    db.run(`UPDATE hatchings SET status = ?, actualHatchDate = ?, hatchedEggs = ?, temperature = ?, humidity = ?, notes = ?, updatedAt = ? WHERE id = ?`,
+        [status, actualHatchDate, hatchedEggs, temperature, humidity, notes, updatedAt, req.params.id],
+        function (err) {
+            if (err) {
+                console.error('PUT /api/hatchings/:id error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
             res.json({ success: true });
         });
 });
 
 app.delete('/api/hatchings/:id', (req, res) => {
-    db.run("DELETE FROM hatchings WHERE id = ?", [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    db.run("DELETE FROM hatchings WHERE id = ?", [req.params.id], function (err) {
+        if (err) {
+            console.error('DELETE /api/hatchings/:id error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
         res.json({ success: true });
     });
 });
 
-app.get('/api/stats', (req, res) => {
-    const stats = {};
-    db.all("SELECT status, COUNT(*) as count FROM animals GROUP BY status", (err, animalStats) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.animals = animalStats;
-        db.all("SELECT status, COUNT(*) as count FROM breedings GROUP BY status", (err, breedingStats) => {
-            if (err) return res.status(500).json({ error: err.message });
-            stats.breedings = breedingStats;
-            db.all("SELECT status, COUNT(*) as count FROM hatchings GROUP BY status", (err, hatchingStats) => {
-                if (err) return res.status(500).json({ error: err.message });
-                stats.hatchings = hatchingStats;
-                res.json(stats);
-            });
-        });
-    });
-});
+// ---------- Health + Frontend ----------
 
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Serve frontend at /
-const frontendPath = path.join(__dirname, '../build');
-app.use(express.static(frontendPath));
+app.use(express.static(path.join(__dirname, '../build')));
 app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(__dirname, '../build', 'index.html'));
 });
 
-// Global error handler
+// ---------- Error & Shutdown ----------
+
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('Unhandled error:', err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\nShutting down...');
     db.close((err) => {
