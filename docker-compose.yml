@@ -3,7 +3,7 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: ./animal-tracking 
+      context: ./animal-tracking
     ports:
       - "3000:3000"
     depends_on:
@@ -12,13 +12,15 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./animal-tracking/backend
     ports:
       - "8000:8000"
     volumes:
       - sqlite_data:/app/data
     environment:
+      # Example environment variables if needed
       - NODE_ENV=production
+      - DB_PATH=/app/data/animal_tracker.db
     restart: unless-stopped
 
 volumes:

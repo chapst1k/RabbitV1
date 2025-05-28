@@ -1,4 +1,7 @@
-FROM node:20
+FROM node:20-alpine
+
+# Install sqlite3 and dependencies
+RUN apk add --no-cache sqlite
 
 WORKDIR /app
 COPY . .
