@@ -25,5 +25,6 @@ Clone the repo and spin everything up with Docker Compose:
 
 - git clone https://github.com/chapst1k/RabbitV1.git
 - cd animal-tracking
+- docker build -t animal-tracker-app .
 - docker-compose up -d
 
