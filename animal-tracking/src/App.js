@@ -3,7 +3,7 @@ import { Camera, Plus, Search, QrCode, Calendar, Users, Egg, Edit3, Trash2, Save
 import './App.css';
 
 // API configuration
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = '/api';
 
 // API helper functions
 const api = {
@@ -302,7 +302,7 @@ const BreedingPage = ({ animals }) => {
                     ))
                 } <
                 /select> < /
-                div > <
+            div > <
                 div className = "form-group" >
                 <
                 label className = "form-label" > Female < /label> <

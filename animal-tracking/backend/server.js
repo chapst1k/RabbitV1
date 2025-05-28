@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(cors());
@@ -115,8 +115,7 @@ app.post('/api/animals', (req, res) => {
     const updatedAt = createdAt;
 
     db.run(`INSERT INTO animals (id, name, species, breed, color, sex, dateOfBirth, status, notes, image, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, species, breed, color, sex, dateOfBirth, status, notes, image, createdAt, updatedAt],
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, name, species, breed, color, sex, dateOfBirth, status, notes, image, createdAt, updatedAt],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id, success: true });
@@ -127,8 +126,7 @@ app.put('/api/animals/:id', (req, res) => {
     const { name, species, breed, color, sex, dateOfBirth, status, notes, image } = req.body;
     const updatedAt = new Date().toISOString();
 
-    db.run(`UPDATE animals SET name = ?, species = ?, breed = ?, color = ?, sex = ?, dateOfBirth = ?, status = ?, notes = ?, image = ?, updatedAt = ? WHERE id = ?`,
-        [name, species, breed, color, sex, dateOfBirth, status, notes, image, updatedAt, req.params.id],
+    db.run(`UPDATE animals SET name = ?, species = ?, breed = ?, color = ?, sex = ?, dateOfBirth = ?, status = ?, notes = ?, image = ?, updatedAt = ? WHERE id = ?`, [name, species, breed, color, sex, dateOfBirth, status, notes, image, updatedAt, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: 'Animal not found' });
@@ -168,8 +166,7 @@ app.post('/api/breedings', (req, res) => {
     const updatedAt = createdAt;
 
     db.run(`INSERT INTO breedings (id, maleId, femaleId, breedingDate, gestationDays, expectedDate, notes, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, maleId, femaleId, breedingDate, gestationDays || 31, expectedDate, notes, createdAt, updatedAt],
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, maleId, femaleId, breedingDate, gestationDays || 31, expectedDate, notes, createdAt, updatedAt],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id, success: true });
@@ -180,8 +177,7 @@ app.put('/api/breedings/:id', (req, res) => {
     const { status, actualDate, offspring, notes } = req.body;
     const updatedAt = new Date().toISOString();
 
-    db.run(`UPDATE breedings SET status = ?, actualDate = ?, offspring = ?, notes = ?, updatedAt = ? WHERE id = ?`,
-        [status, actualDate, offspring, notes, updatedAt, req.params.id],
+    db.run(`UPDATE breedings SET status = ?, actualDate = ?, offspring = ?, notes = ?, updatedAt = ? WHERE id = ?`, [status, actualDate, offspring, notes, updatedAt, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
@@ -210,8 +206,7 @@ app.post('/api/hatchings', (req, res) => {
     const updatedAt = createdAt;
 
     db.run(`INSERT INTO hatchings (id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, createdAt, updatedAt],
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, name, totalEggs, startDate, incubationDays, expectedHatchDate, temperature, humidity, notes, createdAt, updatedAt],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id, success: true });
@@ -222,8 +217,7 @@ app.put('/api/hatchings/:id', (req, res) => {
     const { status, actualHatchDate, hatchedEggs, temperature, humidity, notes } = req.body;
     const updatedAt = new Date().toISOString();
 
-    db.run(`UPDATE hatchings SET status = ?, actualHatchDate = ?, hatchedEggs = ?, temperature = ?, humidity = ?, notes = ?, updatedAt = ? WHERE id = ?`,
-        [status, actualHatchDate, hatchedEggs, temperature, humidity, notes, updatedAt, req.params.id],
+    db.run(`UPDATE hatchings SET status = ?, actualHatchDate = ?, hatchedEggs = ?, temperature = ?, humidity = ?, notes = ?, updatedAt = ? WHERE id = ?`, [status, actualHatchDate, hatchedEggs, temperature, humidity, notes, updatedAt, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
@@ -270,8 +264,8 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
 // Graceful shutdown
