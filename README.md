@@ -10,7 +10,6 @@ A simple web application that can be run locally to track animal keeping, breedi
 - Breeding and hatching logs
 - QR code generation for easy ID scanning ( Not Fully Working ) 
 - Photo uploads for each animal
-- Works offline and syncs with backend when online
 - Simple local SQLite backend
 - Docker support for easy deployment
 
